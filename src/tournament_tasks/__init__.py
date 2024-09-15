@@ -58,7 +58,7 @@ def read_tasks() -> TaskStore:
 
 def list_tasks() -> None:
     task_store = read_tasks()
-    for task in task_store.tasks.values():
+    for task in sorted(list(task_store.tasks.values()), key=lambda x: -x.elo):
         print(task)
 
 
