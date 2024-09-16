@@ -12,14 +12,21 @@ class Action(StrEnum):
     pass
 
 
+class TaskStatus(StrEnum):
+    TODO = "TODO"
+    DONE = "DONE"
+
+
 @dataclass
 class Task:
+    id: int
     elo: int
     title: str
+    status: TaskStatus
 
     @override
     def __repr__(self) -> str:
-        return f"[elo:{self.elo}, title:{self.title}]"
+        return f"[id: {self.id}, elo:{self.elo}, title:{self.title}, status:{self.status.value}]"
 
 
 @dataclass
@@ -35,6 +42,7 @@ class TaskStore:
             with open(file_path, "w") as file:
                 _ = file.write(f"elo:{task.elo}\n")
                 _ = file.write(f"title:{task.title}\n")
+                _ = file.write(f"status:{task.status.value}")
 
 
 def read_tasks() -> TaskStore:
@@ -51,7 +59,8 @@ def read_tasks() -> TaskStore:
             id = int(id)
             elo = int(file.readline().strip().split(":")[1])
             title = file.readline().strip().split(":")[1]
-            tasks[id] = Task(elo=elo, title=title)
+            status = TaskStatus(file.readline().strip().split(":")[1])
+            tasks[id] = Task(id=id, elo=elo, title=title, status=status)
 
     return TaskStore(tasks=tasks)
 
@@ -69,8 +78,14 @@ def review_tasks() -> None:
         # Nothing to do!
         return
 
+    incomplete_task_store = TaskStore(
+        tasks=dict(
+            filter(lambda x: x[1].status != TaskStatus.DONE, task_store.tasks.items()),
+        )
+    )
+
     for _ in range(0, 5):
-        task_items = list(task_store.tasks.items())
+        task_items = list(incomplete_task_store.tasks.items())
         id1, task1 = random.choice(task_items)
         while True:
             id2, task2 = random.choice(task_items)
@@ -115,24 +130,54 @@ def update_elo(task1: Task, task2: Task, winner: int) -> tuple[Task, Task]:
     new_elo2 = task2.elo + k * (actual_score2 - expected_score2)
 
     return (
-        Task(elo=int(new_elo1), title=task1.title),
-        Task(elo=int(new_elo2), title=task2.title),
+        Task(id=task1.id, elo=int(new_elo1), title=task1.title, status=task1.status),
+        Task(id=task2.id, elo=int(new_elo2), title=task2.title, status=task2.status),
     )
+
+
+def create_task(title: str) -> None:
+    task_store = read_tasks()
+    new_id = max(task_store.tasks.keys(), default=0) + 1
+    new_task = Task(id=new_id, elo=1000, title=title, status=TaskStatus.TODO)
+    task_store.tasks[new_id] = new_task
+    task_store.persist()
+    print(f"Created new task: {new_task}")
+
+
+def complete_task(task_id: int) -> None:
+    task_store = read_tasks()
+    if task_id in task_store.tasks:
+        task = task_store.tasks[task_id]
+        task.status = TaskStatus.DONE
+        task_store.persist()
+        print(f"Completed task: {task}")
+    else:
+        print(f"Task with ID {task_id} not found.")
 
 
 def main_cli():
     parser = argparse.ArgumentParser()
-    _ = parser.add_argument(
-        "action", type=str, choices=[str(val).lower() for val in Action], nargs="?"
-    )
+    subparsers = parser.add_subparsers(dest="action", required=False)
+
+    list_parser = subparsers.add_parser("list", help="List all tasks")
+    review_parser = subparsers.add_parser("review", help="Review tasks")
+
+    add_parser = subparsers.add_parser("add", help="Add a new task")
+    add_parser.add_argument("task_title", type=str, help="Title of the new task")
+
+    complete_parser = subparsers.add_parser("complete", help="Complete a task")
+    complete_parser.add_argument("id", type=int, help="ID of the task to complete")
 
     args = parser.parse_args()
     if args.action is None:
         list_tasks()
-    elif args.action is not None:
-        action = Action(args.action.upper())
-        match action:
-            case Action.LIST:
+    else:
+        match args.action:
+            case "list":
                 list_tasks()
-            case Action.REVIEW:
+            case "review":
                 review_tasks()
+            case "add":
+                create_task(args.task_title)
+            case "complete":
+                complete_task(args.id)
