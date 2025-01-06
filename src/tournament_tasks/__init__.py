@@ -3,7 +3,7 @@ import os
 import random
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import override
+from typing import Generator, override
 
 
 class Action(StrEnum):
@@ -44,6 +44,10 @@ class TaskStore:
                 _ = file.write(f"title:{task.title}\n")
                 _ = file.write(f"status:{task.status.value}")
 
+    def incomplete_tasks(self) -> Generator[Task]:
+        for task in filter(lambda x: x.status != TaskStatus.DONE, self.tasks.values()):
+            yield task
+
 
 def read_tasks() -> TaskStore:
     tasks: dict[int, Task] = {}
@@ -67,16 +71,18 @@ def read_tasks() -> TaskStore:
 
 def list_tasks() -> None:
     task_store = read_tasks()
-    for task in sorted(list(task_store.tasks.values()), key=lambda x: -x.elo):
+    incomplete_tasks_gen = task_store.incomplete_tasks()
+    for task in sorted(list(incomplete_tasks_gen), key=lambda x: -x.elo):
         print(task)
 
 
 def review_tasks() -> None:
     task_store = read_tasks()
 
-    if len(task_store.tasks) < 1:
-        # Nothing to do!
-        return
+    if len(
+        list(filter(lambda x: x.status != TaskStatus.DONE, task_store.tasks.values()))
+    ):
+        print("No tasks to review!")
 
     incomplete_task_store = TaskStore(
         tasks=dict(
@@ -98,12 +104,15 @@ def review_tasks() -> None:
             print(f"2: {task2}")
 
             winner = input("> ")
+            if winner == "q":
+                return
+
             try:
                 winner_int = int(winner)
                 assert winner_int == 1 or winner_int == 2
                 break
             except AssertionError:
-                print("Input must be either '1' or '2'.")
+                print("Input must be either '1' or '2' or 'q' to quit.")
 
         # Update the elos.
         task1, task2 = update_elo(task1, task2, winner_int)
