@@ -78,7 +78,10 @@ def list_tasks() -> None:
     task_store = read_tasks()
     incomplete_task_store = task_store.incomplete_task_store()
 
-    print(render_tasks(list(incomplete_task_store.tasks.values())))
+    ordered_tasks = sorted(
+        list(incomplete_task_store.tasks.values()), key=lambda x: -x.elo
+    )
+    print(render_tasks(ordered_tasks))
 
 
 def review_tasks() -> None:
