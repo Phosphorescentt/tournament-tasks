@@ -3,7 +3,9 @@ import os
 import random
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generator, override
+from typing import override
+
+from .rendering import render_tasks
 
 
 class Action(StrEnum):
@@ -44,9 +46,12 @@ class TaskStore:
                 _ = file.write(f"title:{task.title}\n")
                 _ = file.write(f"status:{task.status.value}")
 
-    def incomplete_tasks(self) -> Generator[Task]:
-        for task in filter(lambda x: x.status != TaskStatus.DONE, self.tasks.values()):
-            yield task
+    def incomplete_task_store(self) -> "TaskStore":
+        return TaskStore(
+            tasks=dict(
+                filter(lambda x: x[1].status != TaskStatus.DONE, self.tasks.items())
+            )
+        )
 
 
 def read_tasks() -> TaskStore:
@@ -71,9 +76,9 @@ def read_tasks() -> TaskStore:
 
 def list_tasks() -> None:
     task_store = read_tasks()
-    incomplete_tasks_gen = task_store.incomplete_tasks()
-    for task in sorted(list(incomplete_tasks_gen), key=lambda x: -x.elo):
-        print(task)
+    incomplete_task_store = task_store.incomplete_task_store()
+
+    print(render_tasks(list(incomplete_task_store.tasks.values())))
 
 
 def review_tasks() -> None:
@@ -84,11 +89,7 @@ def review_tasks() -> None:
     ):
         print("No tasks to review!")
 
-    incomplete_task_store = TaskStore(
-        tasks=dict(
-            filter(lambda x: x[1].status != TaskStatus.DONE, task_store.tasks.items()),
-        )
-    )
+    incomplete_task_store = task_store.incomplete_task_store()
 
     for _ in range(0, 5):
         task_items = list(incomplete_task_store.tasks.items())
@@ -100,6 +101,7 @@ def review_tasks() -> None:
                 break
 
         while True:
+            print("Choose the winner! (the more important task)")
             print(f"1: {task1}")
             print(f"2: {task2}")
 
