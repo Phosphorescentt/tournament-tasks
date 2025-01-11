@@ -173,14 +173,16 @@ def main_cli():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="action", required=False)
 
-    list_parser = subparsers.add_parser("list", help="List all tasks")
-    review_parser = subparsers.add_parser("review", help="Review tasks")
+    _list_parser = subparsers.add_parser("list", help="List all tasks")
+    _review_parser = subparsers.add_parser("review", help="Review tasks")
 
     add_parser = subparsers.add_parser("add", help="Add a new task")
-    add_parser.add_argument("task_title", type=str, help="Title of the new task")
+    _ = add_parser.add_argument("task_title", type=str, help="Title of the new task")
 
-    complete_parser = subparsers.add_parser("complete", help="Complete a task")
-    complete_parser.add_argument("id", type=int, help="ID of the task to complete")
+    complete_parser = subparsers.add_parser("done", help="Mark a task as done")
+    _ = complete_parser.add_argument(
+        "id", type=int, help="ID of the task to mark as done"
+    )
 
     args = parser.parse_args()
     if args.action is None:
@@ -193,5 +195,5 @@ def main_cli():
                 review_tasks()
             case "add":
                 create_task(args.task_title)
-            case "complete":
+            case "done":
                 complete_task(args.id)
